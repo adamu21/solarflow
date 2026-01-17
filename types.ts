@@ -53,3 +53,12 @@ export interface DashboardStats {
     pendingAurora: number;
     revenuePotential: number;
 }
+
+export interface AuroraProject {
+    id: string;
+    name: string;
+    property_address: string;
+    created_at: string;
+    customer_id?: string;
+    status?: 'Design' | 'Proposed' | 'Sold';
+}

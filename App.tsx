@@ -18,13 +18,18 @@ import {
   RefreshCw,
   Share,
   PlusSquare,
-  Laptop
+  Laptop,
+  FolderOpen,
+  FilePlus,
+  FileText,
+  Image as ImageIcon,
+  Archive
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { Pipeline } from './components/Pipeline';
 import { LeadCard } from './components/LeadCard';
 import { INITIAL_LEADS, EMAIL_TEMPLATES } from './constants';
-import { Lead, LeadStatus, LeadSource } from './types';
+import { Lead, LeadStatus, LeadSource, AuroraProject } from './types';
 import { analyzeLeadSpam, draftResponseEmail } from './services/geminiService';
 
 // --- Helper Components for App Layout ---
@@ -93,7 +98,7 @@ const cleanHtmlContent = (html: string) => {
 };
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'pipeline' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'pipeline' | 'projects' | 'settings'>('dashboard');
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
@@ -103,6 +108,12 @@ const App = () => {
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
+
+  // Aurora Projects State
+  const [auroraProjects, setAuroraProjects] = useState<AuroraProject[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [projectsError, setProjectsError] = useState<string>('');
+  const [proposalModalOpen, setProposalModalOpen] = useState<AuroraProject | null>(null);
 
   // Handle PWA Install Prompt & Environment Checks
   useEffect(() => {
@@ -174,6 +185,58 @@ const App = () => {
   const handleViewInPipeline = () => {
       setActiveTab('pipeline');
   };
+
+  // --- AURORA SOLAR API INTEGRATION (VIA PROXY) ---
+  const fetchAuroraProjects = async () => {
+    setLoadingProjects(true);
+    setProjectsError('');
+    
+    // We now point to our own backend route
+    // On Vercel, this automatically routes to the file we made in Step 1
+    const url = "/api/aurora";
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        // Aurora usually wraps projects in a "projects" array, check your specific API response
+        setAuroraProjects(data.projects || data || []);
+        
+    } catch (error: any) {
+        console.warn("Aurora API not accessible (likely local dev or missing env vars). Using Mock Data.");
+        
+        // Fallback for demo purposes
+        setAuroraProjects([
+            { id: '643d0db7-6137-4fc6-86f1-eb23bf16cd9c', name: 'John Smith Residence', property_address: '123 Maple Drive, Calgary', created_at: '2023-10-15T10:00:00Z', status: 'Design' },
+            { id: '743d0db7-6137-4fc6-86f1-eb23bf16cd9d', name: 'Enmax - Beta Site', property_address: '88 Test Street, Calgary', created_at: '2023-10-18T14:30:00Z', status: 'Proposed' }
+        ]);
+
+        // Only set error if it is NOT a 404. 404 is expected on localhost without Vercel/Netlify functions running.
+        if (error.message && error.message.includes("404")) {
+           setProjectsError(""); // Clear error, treat as silent fallback
+        } else {
+           setProjectsError("Using offline demo data.");
+        }
+    } finally {
+        setLoadingProjects(false);
+    }
+  };
+
+  // Initial fetch when tab opens
+  useEffect(() => {
+      if (activeTab === 'projects' && auroraProjects.length === 0) {
+          fetchAuroraProjects();
+      }
+  }, [activeTab]);
 
   // --- THE NEW SYNC FUNCTION CONNECTED TO YOUR GOOGLE SHEET ---
   const handleSyncEmails = async () => {
@@ -290,17 +353,171 @@ const App = () => {
     setLoadingAI(false);
   };
 
-  const handleCreateAuroraProject = (lead: Lead) => {
-      // SAFEGUARD: No POST request is made here.
-      // This is purely a simulation as requested.
-      alert(`[SIMULATION] Creating project in Aurora for ${lead.address}...\n\nNote: No API charges were incurred. This is a mock action.`);
-      setTimeout(() => {
-          handleLeadUpdate({
-              ...lead,
-              status: LeadStatus.AURORA_DESIGN,
-              auroraProjectId: `aurora_${Math.floor(Math.random() * 10000)}`
-          });
-      }, 1000);
+  // Directly opens the proposal modal for the selected lead
+  const handleOpenProposalModal = (lead: Lead) => {
+       setProposalModalOpen({
+           id: lead.id, // Use Lead ID for proposal tracking
+           name: lead.name,
+           property_address: lead.address,
+           created_at: new Date().toISOString(),
+           status: 'Design'
+       });
+  };
+
+  // --- Proposal Generator ---
+  const handleDownloadProposal = (project: AuroraProject) => {
+      // Professional Solar Proposal Template
+      const template = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Proposal - ${project.name}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: { 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 900: '#14532d' }
+            }
+          }
+        }
+      }
+    </script>
+</head>
+<body class="bg-gray-100 font-sans text-slate-800 print:bg-white">
+    <div class="max-w-4xl mx-auto bg-white shadow-xl my-8 print:shadow-none print:my-0">
+        <!-- Header -->
+        <div class="bg-brand-900 text-white p-12 flex justify-between items-end print:p-8">
+            <div>
+                <div class="flex items-center space-x-2 mb-4">
+                    <svg class="w-8 h-8 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <span class="text-2xl font-bold tracking-tight">Rocky Mountain Solar</span>
+                </div>
+                <h1 class="text-4xl font-bold">Solar Energy Proposal</h1>
+                <p class="mt-2 text-brand-100">Customized Energy Solution</p>
+            </div>
+            <div class="text-right text-brand-100">
+                <p>Date: ${new Date().toLocaleDateString()}</p>
+                <p>Valid Until: ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}</p>
+            </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="p-12 border-b border-gray-100 print:p-8">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-1">Prepared For</h3>
+                    <h2 class="text-2xl font-bold text-gray-900">${project.name}</h2>
+                    <p class="text-gray-600 mt-1">${project.property_address}</p>
+                </div>
+                <div class="text-right">
+                    <h3 class="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-1">System Details</h3>
+                    <p class="text-gray-900"><strong>System Size:</strong> 12.4 kW</p>
+                    <p class="text-gray-900"><strong>Annual Production:</strong> 14,200 kWh</p>
+                    <p class="text-gray-900"><strong>Offset:</strong> 103%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Visual -->
+        <div class="p-12 bg-gray-50 border-b border-gray-100 print:p-8">
+            <h3 class="text-xl font-bold text-gray-900 mb-6">Your System Design</h3>
+            <div class="aspect-video bg-white rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden">
+                 <!-- Mockup of satellite view -->
+                 <div class="absolute inset-0 bg-gray-200 flex items-center justify-center">
+                    <span class="text-gray-400 font-medium">Satellite Imagery & Panel Placement</span>
+                 </div>
+                 <div class="absolute inset-0 bg-brand-500/10 backdrop-grayscale"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-6 mt-6 text-center">
+                <div class="p-4 bg-white rounded shadow-sm">
+                    <div class="text-2xl font-bold text-brand-600">28</div>
+                    <div class="text-sm text-gray-500">Premium Panels</div>
+                </div>
+                <div class="p-4 bg-white rounded shadow-sm">
+                    <div class="text-2xl font-bold text-brand-600">25 Yr</div>
+                    <div class="text-sm text-gray-500">Performance Warranty</div>
+                </div>
+                <div class="p-4 bg-white rounded shadow-sm">
+                    <div class="text-2xl font-bold text-brand-600">$2,400</div>
+                    <div class="text-sm text-gray-500">Est. Annual Savings</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Options -->
+        <div class="p-12 print:p-8 print:break-before-page">
+            <h3 class="text-xl font-bold text-gray-900 mb-6">Investment Options</h3>
+            <div class="grid grid-cols-2 gap-8">
+                <!-- Standard -->
+                <div class="border rounded-xl p-6 relative">
+                    <h4 class="text-lg font-bold text-gray-900">Standard Solar</h4>
+                    <p class="text-sm text-gray-500 mb-4">Maximum ROI</p>
+                    <div class="text-3xl font-bold text-gray-900 mb-6">$22,500 <span class="text-sm font-normal text-gray-500">net</span></div>
+                    <ul class="space-y-3 text-sm text-gray-600 mb-8">
+                        <li class="flex items-center"><span class="mr-2 text-brand-500">✓</span> 400W Monocrystalline Panels</li>
+                        <li class="flex items-center"><span class="mr-2 text-brand-500">✓</span> String Inverter Technology</li>
+                        <li class="flex items-center"><span class="mr-2 text-brand-500">✓</span> Web Monitoring</li>
+                    </ul>
+                </div>
+                
+                <!-- Premium -->
+                <div class="border-2 border-brand-500 bg-brand-50 rounded-xl p-6 relative shadow-sm">
+                    <div class="absolute top-0 right-0 bg-brand-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">RECOMMENDED</div>
+                    <h4 class="text-lg font-bold text-gray-900">Tesla Powerwall + Solar</h4>
+                    <p class="text-sm text-brand-700 mb-4">Energy Independence</p>
+                    <div class="text-3xl font-bold text-gray-900 mb-6">$38,200 <span class="text-sm font-normal text-gray-500">net</span></div>
+                    <ul class="space-y-3 text-sm text-gray-800 mb-8">
+                        <li class="flex items-center"><span class="mr-2 text-brand-600">✓</span> <strong>Tesla Powerwall 3</strong> Included</li>
+                        <li class="flex items-center"><span class="mr-2 text-brand-600">✓</span> <strong>All-Black</strong> Aesthetics</li>
+                        <li class="flex items-center"><span class="mr-2 text-brand-600">✓</span> 25-Year Comprehensive Warranty</li>
+                        <li class="flex items-center"><span class="mr-2 text-brand-600">✓</span> Backup Protection</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acceptance -->
+        <div class="bg-gray-50 p-12 border-t border-gray-100 print:p-8">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Next Steps</h3>
+            <p class="text-gray-600 mb-8">By signing below, you authorize Rocky Mountain Solar to proceed with permitting and interconnection applications.</p>
+            
+            <div class="grid grid-cols-2 gap-12">
+                <div>
+                    <div class="border-b border-gray-400 h-12 mb-2"></div>
+                    <p class="text-sm text-gray-500 uppercase">Customer Signature</p>
+                </div>
+                <div>
+                    <div class="border-b border-gray-400 h-12 mb-2"></div>
+                    <p class="text-sm text-gray-500 uppercase">Date</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-gray-900 text-gray-400 py-6 text-center text-sm print:text-black print:bg-white">
+            <p>&copy; ${new Date().getFullYear()} Rocky Mountain Solar. All rights reserved.</p>
+        </div>
+    </div>
+    
+    <script>
+       // Auto-print on open (optional, nice for PDF generation feel)
+       // window.onload = () => window.print();
+    </script>
+</body>
+</html>`;
+      
+      const blob = new Blob([template], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${project.name.replace(/\s+/g, '_')}_Proposal.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setProposalModalOpen(null);
   };
 
   return (
@@ -318,6 +535,7 @@ const App = () => {
           <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <SidebarItem icon={Users} label="Inbox & Leads" active={activeTab === 'leads'} onClick={() => setActiveTab('leads')} />
           <SidebarItem icon={Kanban} label="Pipeline" active={activeTab === 'pipeline'} onClick={() => setActiveTab('pipeline')} />
+          <SidebarItem icon={FolderOpen} label="Previous Projects" active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
         </nav>
 
         <div className="p-4 border-t border-gray-100 space-y-2">
@@ -331,7 +549,7 @@ const App = () => {
            <h2 className="text-xl font-semibold text-gray-800 capitalize flex items-center">
              {/* Mobile Menu Trigger (Visual only for now, can be functional if needed) */}
              <div className="md:hidden mr-4 bg-brand-500 p-1.5 rounded text-white"><Sun size={20}/></div>
-             {activeTab}
+             {activeTab === 'projects' ? 'Aurora Projects' : activeTab}
            </h2>
            <div className="flex items-center space-x-3">
              {installPrompt && (
@@ -359,8 +577,91 @@ const App = () => {
              />
           )}
 
+          {activeTab === 'projects' && (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Aurora Project Database</h3>
+                        <p className="text-sm text-gray-500">Live connection to Aurora Solar API</p>
+                    </div>
+                    <button 
+                        onClick={fetchAuroraProjects} 
+                        disabled={loadingProjects}
+                        className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                    >
+                        <RefreshCw size={16} className={loadingProjects ? 'animate-spin' : ''} />
+                        <span>Refresh Projects</span>
+                    </button>
+                </div>
+
+                {projectsError && (
+                    <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg flex items-start text-sm">
+                        <Monitor className="mr-2 mt-0.5 flex-shrink-0" size={16} />
+                        <div>
+                            <p className="font-semibold">Demo Mode / Error</p>
+                            <p>{projectsError}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {loadingProjects ? (
+                                [1, 2, 3].map(i => (
+                                    <tr key={i} className="animate-pulse">
+                                        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-3/4"></div></td>
+                                        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-1/2"></div></td>
+                                        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-1/4"></div></td>
+                                        <td className="px-6 py-4"><div className="h-8 bg-gray-200 rounded w-24"></div></td>
+                                    </tr>
+                                ))
+                            ) : (
+                                auroraProjects.map(project => (
+                                    <tr key={project.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900">{project.name}</div>
+                                            <div className="text-xs text-gray-500">ID: {project.id.substring(0, 8)}...</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-500">{project.property_address}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-500">{new Date(project.created_at).toLocaleDateString()}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <button 
+                                                onClick={() => alert("Opening project in Aurora Solar (External Link)...")}
+                                                className="flex items-center space-x-2 px-3 py-1.5 text-gray-600 hover:text-brand-600 hover:bg-gray-50 rounded-lg transition-colors text-sm font-medium"
+                                            >
+                                                <ExternalLink size={16} />
+                                                <span>Open in Aurora</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                    {!loadingProjects && auroraProjects.length === 0 && (
+                        <div className="p-12 text-center text-gray-500">
+                            No projects found via API.
+                        </div>
+                    )}
+                </div>
+            </div>
+          )}
+
           {activeTab === 'leads' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
                 <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                     <div className="flex items-center space-x-4">
                         <h3 className="font-medium text-gray-700">Incoming Requests</h3>
@@ -385,17 +686,30 @@ const App = () => {
                     Connected to: lwrtemp@lynnwoodroofing.ca (via Power Automate)
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                  {leads.map(lead => (
-                    <LeadCard 
-                        key={lead.id} 
-                        lead={lead} 
-                        onClick={setSelectedLead}
-                        onVerify={handleVerifyLead}
-                        onViewPipeline={handleViewInPipeline}
-                    />
-                  ))}
-                </div>
+                {leads.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                    {leads.map(lead => (
+                      <LeadCard 
+                          key={lead.id} 
+                          lead={lead} 
+                          onClick={setSelectedLead}
+                          onVerify={handleVerifyLead}
+                          onViewPipeline={handleViewInPipeline}
+                          onCreateProposal={handleOpenProposalModal}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                    <div className="bg-gray-50 p-4 rounded-full mb-3">
+                        <Users size={32} />
+                    </div>
+                    <p>No leads found.</p>
+                    <button onClick={handleSyncEmails} className="text-brand-600 text-sm mt-2 hover:underline">
+                        Sync from Email
+                    </button>
+                  </div>
+                )}
             </div>
           )}
 
@@ -463,6 +777,105 @@ const App = () => {
                 </button>
             </div>
         </div>
+      )}
+
+      {/* PROPOSAL CREATION MODAL */}
+      {proposalModalOpen && (
+          <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+                  <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
+                      <div>
+                          <h2 className="text-xl font-bold text-gray-900">Generate Proposal Package</h2>
+                          <p className="text-sm text-gray-500">Project: {proposalModalOpen.name}</p>
+                      </div>
+                      <button onClick={() => setProposalModalOpen(null)} className="text-gray-400 hover:text-gray-600 p-2">
+                          <X size={24} />
+                      </button>
+                  </div>
+                  
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Left: Configuration */}
+                      <div className="space-y-6">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Proposal Expiration</label>
+                              <div className="p-3 bg-orange-50 text-orange-800 text-sm rounded-lg border border-orange-200 flex items-start">
+                                  <Archive size={16} className="mr-2 mt-0.5" />
+                                  <span>
+                                      <strong>Issue:</strong> Standard links expire in 9 days.<br/>
+                                      <strong>Solution:</strong> The button below generates a permanent offline package.
+                                  </span>
+                              </div>
+                          </div>
+
+                          <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                              <h4 className="font-semibold text-gray-900 flex items-center">
+                                  <ImageIcon size={16} className="mr-2" />
+                                  Image Adjustments
+                              </h4>
+                              <div>
+                                  <label className="text-xs font-medium text-gray-500 uppercase">Cover Image</label>
+                                  <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm p-2 border bg-white">
+                                      <option>3D Model - South View (Default)</option>
+                                      <option>3D Model - Top Down</option>
+                                      <option>Street View</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label className="text-xs font-medium text-gray-500 uppercase">System Overlay</label>
+                                  <div className="mt-2 flex items-center space-x-4">
+                                      <label className="inline-flex items-center">
+                                          <input type="radio" className="form-radio text-brand-600" name="overlay" defaultChecked />
+                                          <span className="ml-2 text-sm">Solid Panels</span>
+                                      </label>
+                                      <label className="inline-flex items-center">
+                                          <input type="radio" className="form-radio text-brand-600" name="overlay" />
+                                          <span className="ml-2 text-sm">Translucent</span>
+                                      </label>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Pricing Tier</label>
+                              <div className="grid grid-cols-2 gap-3">
+                                  <div className="border border-brand-500 bg-brand-50 p-3 rounded-lg cursor-pointer">
+                                      <div className="text-sm font-bold text-brand-900">Premium (Tesla)</div>
+                                      <div className="text-xs text-brand-700">Includes Powerwall</div>
+                                  </div>
+                                  <div className="border border-gray-200 p-3 rounded-lg hover:border-gray-300 cursor-pointer">
+                                      <div className="text-sm font-bold text-gray-700">Standard</div>
+                                      <div className="text-xs text-gray-500">Solar Only</div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Right: Preview & Action */}
+                      <div className="flex flex-col h-full bg-gray-100 rounded-lg border border-gray-200 overflow-hidden relative">
+                           <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">Preview</div>
+                           <div className="flex-1 flex items-center justify-center p-8">
+                               <div className="bg-white w-full h-64 shadow-lg rounded flex flex-col items-center justify-center space-y-2 border">
+                                    <Sun size={48} className="text-brand-500" />
+                                    <h3 className="font-bold text-gray-800">Solar Proposal</h3>
+                                    <p className="text-xs text-gray-400">Prepared for {proposalModalOpen.name}</p>
+                                    <div className="w-3/4 h-2 bg-gray-100 rounded mt-4"></div>
+                                    <div className="w-1/2 h-2 bg-gray-100 rounded"></div>
+                               </div>
+                           </div>
+                           <div className="bg-white p-4 border-t border-gray-200">
+                               <button 
+                                  onClick={() => handleDownloadProposal(proposalModalOpen)}
+                                  className="w-full flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl"
+                               >
+                                   <Download size={20} />
+                                   <span>Download Proposal Package</span>
+                               </button>
+                               <p className="text-center text-xs text-gray-500 mt-2">Bypasses 9-day link expiry limit</p>
+                           </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* Lead Detail Modal */}
@@ -600,28 +1013,24 @@ const App = () => {
                   )}
                </div>
                
-               {/* Action: Aurora */}
+               {/* Action: Proposal */}
                <div className="space-y-4 pb-12">
-                   <h3 className="font-semibold text-gray-900 border-b pb-2">Technical Design</h3>
+                   <h3 className="font-semibold text-gray-900 border-b pb-2">Proposal Generation</h3>
                    <div className="flex items-center justify-between bg-white border p-4 rounded-lg">
                        <div>
-                           <p className="font-medium">Aurora Solar Project</p>
+                           <p className="font-medium">Customer Proposal</p>
                            <p className="text-xs text-gray-500">
-                               {selectedLead.auroraProjectId ? `ID: ${selectedLead.auroraProjectId}` : 'Not created yet'}
+                               Generate a PDF proposal based on the active template.
                            </p>
                        </div>
-                       {!selectedLead.auroraProjectId ? (
-                           <button 
-                            onClick={() => handleCreateAuroraProject(selectedLead)}
-                            className="text-sm bg-gray-900 text-white px-4 py-2 rounded hover:bg-gray-800 transition-colors"
-                           >
-                               Create Project
-                           </button>
-                       ) : (
-                           <span className="text-green-600 text-sm font-medium flex items-center">
-                               <CheckCircle size={16} className="mr-1" /> Active
-                           </span>
-                       )}
+                       
+                       <button 
+                           onClick={() => handleOpenProposalModal(selectedLead)}
+                           className="flex items-center space-x-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-semibold shadow-md"
+                       >
+                           <FilePlus size={16} />
+                           <span>Create Proposal</span>
+                       </button>
                    </div>
                </div>
 

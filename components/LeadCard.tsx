@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lead, LeadStatus, LeadSource } from '../types';
-import { Mail, Zap, AlertTriangle, CheckCircle, FileText, Check, Kanban, ArrowRight } from 'lucide-react';
+import { Mail, Zap, AlertTriangle, CheckCircle, FileText, Check, Kanban, ArrowRight, FilePlus } from 'lucide-react';
 
 interface LeadCardProps {
   lead: Lead;
@@ -9,6 +9,7 @@ interface LeadCardProps {
   draggable?: boolean;
   onVerify?: (lead: Lead) => void;
   onViewPipeline?: () => void;
+  onCreateProposal?: (lead: Lead) => void;
 }
 
 const SourceBadge = ({ source }: { source: LeadSource }) => {
@@ -25,8 +26,9 @@ const SourceBadge = ({ source }: { source: LeadSource }) => {
   );
 };
 
-export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, compact, draggable, onVerify, onViewPipeline }) => {
-  const isSpam = lead.status === LeadStatus.SPAM || (lead.aiSpamScore && lead.aiSpamScore > 80);
+export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, compact, draggable, onVerify, onViewPipeline, onCreateProposal }) => {
+  // Ensure strict boolean for className logic
+  const isSpam = lead.status === LeadStatus.SPAM || ((lead.aiSpamScore || 0) > 80);
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('leadId', lead.id);
@@ -41,6 +43,11 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, compact, drag
   const handleViewPipeline = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (onViewPipeline) onViewPipeline();
+  };
+
+  const handleCreateProposal = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (onCreateProposal) onCreateProposal(lead);
   };
 
   return (
@@ -63,7 +70,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, compact, drag
 
       {!compact && (
         <div className="mb-3 text-sm text-gray-600 line-clamp-2">
-          {lead.messageBody}
+          {lead.messageBody || "No details provided."}
         </div>
       )}
 
@@ -78,6 +85,18 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onClick, compact, drag
         </div>
         
         <div className="flex items-center space-x-2">
+            {/* Direct Proposal Creation */}
+            {onCreateProposal && !isSpam && (
+                <button 
+                    onClick={handleCreateProposal}
+                    className="flex items-center text-brand-600 hover:bg-brand-50 px-2 py-1 rounded text-xs font-medium border border-transparent hover:border-brand-200 transition-colors mr-1"
+                    title="Create Proposal"
+                >
+                    <FilePlus size={14} className="mr-1" />
+                    Proposal
+                </button>
+            )}
+
             {/* Pipeline Link Button */}
             {onViewPipeline && !compact && (
                 <button 
