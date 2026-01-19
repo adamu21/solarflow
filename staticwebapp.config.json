@@ -1,18 +1,1 @@
-
-{
-  "auth": {
-    "identityProviders": {
-      "azureActiveDirectory": {
-        "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/da9184ab-d1bc-41da-ad6e-19f37d4957a7/v2.0"
-        }
-      }
-    }
-  },
-  "routes": [
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ]
-}
+{"routes":[{"route":"/*","allowedRoles":["authenticated"]}]}
