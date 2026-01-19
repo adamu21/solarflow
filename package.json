@@ -2,7 +2,6 @@
   "name": "solarflow-crm",
   "private": true,
   "version": "1.0.0",
-  "homepage": "https://kiaksarmohammad.github.io/solarflow",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +15,8 @@
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "recharts": "^3.6.0"
+    "recharts": "^3.6.0",
+    "ci": "^2.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.3",
