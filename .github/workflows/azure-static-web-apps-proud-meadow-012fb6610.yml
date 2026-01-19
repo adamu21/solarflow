@@ -24,6 +24,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: solarflow-main/package-lock.json   # <— IMPORTANT
 
       - name: Install dependencies
         working-directory: solarflow-main
@@ -43,5 +44,6 @@ jobs:
           app_location: "solarflow-main"       # where package.json lives
           # api_location: "api"   # <-- comment out until we add proper Functions
           output_location: "dist" # Vite's build output
+
 
 
