@@ -26,9 +26,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
+        working-directory: solarflow-main
         run: npm install
 
       - name: Build
+        working-directory: solarflow-main
         run: npm run build
 
       - name: Deploy to Azure Static Web Apps
@@ -41,4 +43,5 @@ jobs:
           app_location: "solarflow-main"       # where package.json lives
           # api_location: "api"   # <-- comment out until we add proper Functions
           output_location: "dist" # Vite's build output
+
 
