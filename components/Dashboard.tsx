@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState} from 'react';
 import { Lead, LeadStatus } from '../types';
 import { StatsCard } from './StatsCard';
 import { Users, DollarSign, Zap, FileCheck } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { fetchActrecTop, ActRecRow } from '../services/actrec';
 
 interface DashboardProps {
     leads: Lead[];
@@ -26,6 +27,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
         { name: 'Proposal', count: leads.filter(l => l.status === LeadStatus.PROPOSAL_SENT).length },
         { name: 'Signed', count: leads.filter(l => l.status === LeadStatus.SIGNED).length },
     ];
+
+    
+  // ----- NEW: actrec state -----
+  const [actrecRows, setActrecRows] = useState<ActRecRow[]>([]);
+  const [actrecLoading, setActrecLoading] = useState(false);
+  const [actrecError, setActrecError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setActrecLoading(true);
+        const rows = await fetchActrecTop(20, 0);
+        setActrecRows(rows);
+      } catch (e: any) {
+        setActrecError(e?.message ?? 'Failed to load Accounts Receivable');
+      } finally {
+        setActrecLoading(false);
+      }
+    })();
+  }, []);
+
+  // We’ll auto-detect columns from the first row for now
+  const columns = React.useMemo(
+    () => (actrecRows.length > 0 ? Object.keys(actrecRows[0]) : []),
+    [actrecRows]
+  );
+
 
     return (
         <div className="space-y-6">
@@ -73,6 +101,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
                     </div>
                 </div>
             </div>
+
+            
+{/* NEW: Full-width actrec table */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-semibold mb-4 text-gray-800">Accounts Receivable (Top 20)</h3>
+
+        {actrecLoading && <div className="text-gray-500">Loading…</div>}
+        {actrecError && <div className="text-red-600">Error: {actrecError}</div>}
+
+        {!actrecLoading && !actrecError && actrecRows.length === 0 && (
+          <div className="text-gray-500">No rows returned.</div>
+        )}
+
+        {!actrecLoading && !actrecError && actrecRows.length > 0 && (
+          <div className="overflow-auto">
+            <table className="min-w-full text-sm text-left border border-gray-200 rounded-lg">
+              <thead className="bg-gray-50 text-gray-700">
+                <tr>
+                  {columns.map((c) => (
+                    <th key={c} className="px-3 py-2 border-b border-gray-200 sticky top-0 bg-gray-50">
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {actrecRows.map((row, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    {columns.map((c) => (
+                      <td key={c} className="px-3 py-2 border-b border-gray-100">
+                        {String(row[c] ?? "")}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        </div>
         </div>
     );
 };

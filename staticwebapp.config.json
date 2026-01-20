@@ -1,8 +1,0 @@
-{
-  "routes": [
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ]
-}
