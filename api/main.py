@@ -1,23 +1,17 @@
-
+# api/main.py
 import os
-import json
-import pyodbc
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
+from db import get_conn  # health check uses this
+from routers.actrec import router as actrec_router  # your feature router
+
 load_dotenv()
 
-# --- Config ---
-SQL_SERVER = os.getenv("SQL_SERVER", "localhost")
-SQL_PORT = os.getenv("SQL_PORT", "1433")
-SQL_DATABASE = os.getenv("SQL_DATABASE")
-SQL_USER = os.getenv("SQL_USER")
-SQL_PASSWORD = os.getenv("SQL_PASSWORD")
-CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
-
-if not all([SQL_DATABASE, SQL_USER, SQL_PASSWORD]):
-    raise RuntimeError("Missing required DB env vars. Check .env file.")
+CORS_ORIGINS = [
+    o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()
+]
 
 # --- FastAPI app ---
 app = FastAPI(title="SolarFlow API (FastAPI + SQL Server)", version="0.1.0")
@@ -31,19 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- SQL connection helper ---
-def get_conn():
-    # For initial dev, keep Encrypt=no;TrustServerCertificate=yes.
-    # In prod, use a trusted cert on SQL and set Encrypt=yes;TrustServerCertificate=no.
-    conn_str = (
-        "DRIVER={ODBC Driver 18 for SQL Server};"
-        f"SERVER={SQL_SERVER},{SQL_PORT};"
-        f"DATABASE={SQL_DATABASE};"
-        f"UID={SQL_USER};PWD={SQL_PASSWORD};"
-        "Encrypt=no;TrustServerCertificate=yes;"
-        "Connection Timeout=15;"
-    )
-    return pyodbc.connect(conn_str)
 
 @app.get("/health")
 def health():
@@ -53,36 +34,8 @@ def health():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/actrec")
-def get_actrec(
-    top: int = Query(20, ge=1, le=500, description="How many rows to return"),
-    offset: int = Query(0, ge=0, description="Offset for pagination")
-):
-    """
-    Returns rows from [dbo].[actrec], selecting only the specified columns.
-    Uses OFFSET/FETCH with 2 parameter markers (?) for (offset, top).
-    """
-    try:
-        with get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT _idnum, recnum, jobnme, shtnme, addrs1
-                FROM [dbo].[actrec]
-                ORDER BY recnum DESC          -- choose your stable ordering
-                OFFSET ? ROWS FETCH NEXT ? ROWS ONLY;
-                """,
-                (offset, top),
-            )
-            cols = [c[0] for c in cur.description]
-            rows = cur.fetchall()
-            data = [dict(zip(cols, r)) for r in rows]
-            # serialize decimals/datetimes if needed
-            data = json.loads(json.dumps(data, default=str))
-            return {"data": data, "count": len(data), "offset": offset, "top": top}
-    except Exception as e:
-        # This returns 500 with a friendly message to the client
-        raise HTTPException(status_code=500, detail=f"DB query failed: {e}")
+#### Feature Routes
+app.include_router(actrec_router)
 
 
 # Used to Test if FastAPI is working. 

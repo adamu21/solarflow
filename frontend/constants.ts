@@ -1,4 +1,4 @@
-import { Lead, LeadSource, LeadStatus, EmailTemplate } from './types';
+import { Lead, LeadSource, LeadStatus, EmailTemplate } from './src/types';
 
 export const INITIAL_LEADS: Lead[] = [
     {
