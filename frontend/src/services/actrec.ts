@@ -1,14 +1,14 @@
 
 // If you want these exact 5 fields only:
 export type ActRecRow = {
-  _idnum: string | string;
+  _idnum: string;
   recnum: number | string;
   jobnme: string | null;
   shtnme: string | null;
   addrs1: string | null;
 };
 
-export async function fetchActrecTop(top = 20, offset = 0): Promise<ActRecRow[]> {
+export async function fetchActrecTop(top = 10, offset = 0): Promise<ActRecRow[]> {
   const base = import.meta.env.VITE_API_BASE;
   if (!base) throw new Error("VITE_API_BASE is not defined (check .env.local)");
 

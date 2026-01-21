@@ -4,6 +4,7 @@ import { StatsCard } from './StatsCard';
 import { Users, DollarSign, Zap, FileCheck } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { fetchActrecTop, ActRecRow } from '../services/actrec';
+import { fetchWorkOrders, WorkOrderRow } from '../services/workorders';
 
 interface DashboardProps {
     leads: Lead[];
@@ -38,7 +39,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
     (async () => {
       try {
         setActrecLoading(true);
-        const rows = await fetchActrecTop(20, 0);
+        const rows = await fetchActrecTop(50, 0);
         setActrecRows(rows);
       } catch (e: any) {
         setActrecError(e?.message ?? 'Failed to load Accounts Receivable');
@@ -54,7 +55,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
     [actrecRows]
   );
 
+// work orders
+  // function WorkOrdersTable() {
+    const [woRows, setWORows] = useState<WorkOrderRow[]>([]);
+    const [woLoading, setWOLoading] = useState(false);
+    const [woError, setWOError] = useState<string | null>(null);
 
+    useEffect(() => {
+      (async () => {
+        try {
+          setWOLoading(true);
+          const data = await fetchWorkOrders(20, 0, '');
+          setWORows(data);
+        } catch (e: any) {
+          setWOError(e?.message ?? 'Failed to load work orders');
+        } finally {
+          setWOLoading(false);
+        }
+      })();
+    }, []);
+
+  // We’ll auto-detect columns from the first row for now
+  const wocolumns = React.useMemo(
+    () => (woRows.length > 0 ? Object.keys(woRows[0]) : []),
+    [woRows]
+  );
+  // }
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-800">Overview</h2>
@@ -141,6 +167,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
           </div>
         )}
         </div>
+
+        {/* WorkOrders  */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-semibold mb-4 text-gray-800">Work Orders</h3>
+
+        {woLoading && <div className="text-gray-500">Loading…</div>}
+        {woError && <div className="text-red-600">Error: {actrecError}</div>}
+
+        {!woLoading && !woError && woRows.length === 0 && (
+          <div className="text-gray-500">No rows returned.</div>
+        )}
+
+        {!woLoading && !woError && woRows.length > 0 && (
+          <div className="overflow-auto">
+            <table className="min-w-full text-sm text-left border border-gray-200 rounded-lg">
+              <thead className="bg-gray-50 text-gray-700">
+                <tr>
+                  {wocolumns.map((c) => (
+                    <th key={c} className="px-3 py-2 border-b border-gray-200 sticky top-0 bg-gray-50">
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {woRows.map((row, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    {wocolumns.map((c) => (
+                      <td key={c} className="px-3 py-2 border-b border-gray-100">
+                        {String(row[c] ?? "")}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        </div>
+
         </div>
     );
 };

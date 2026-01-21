@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from db import get_conn  # health check uses this
-from routers.actrec import router as actrec_router  # your feature router
+
 
 load_dotenv()
 
@@ -35,7 +35,11 @@ def health():
         raise HTTPException(status_code=500, detail=str(e))
 
 #### Feature Routes
+from routers.actrec import router as actrec_router  # your feature router
+from routers.workorders import router as workorders_router
+
 app.include_router(actrec_router)
+app.include_router(workorders_router)
 
 
 # Used to Test if FastAPI is working. 
