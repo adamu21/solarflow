@@ -25,4 +25,4 @@ dist-ssr
 api/.env
 .env
 .env*
-!/.env.production
+**/.env
