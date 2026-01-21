@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
         # If npm ci ever fails because lockfile is missing/outdated:
-        # run: npm install
+        run: npm install
 
       - name: Build (Vite)
         run: npm run build
