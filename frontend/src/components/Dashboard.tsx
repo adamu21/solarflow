@@ -39,7 +39,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
     (async () => {
       try {
         setActrecLoading(true);
-        const rows = await fetchActrecTop(50, 0);
+        const rows = await fetchActrecTop(10, 0);
         setActrecRows(rows);
       } catch (e: any) {
         setActrecError(e?.message ?? 'Failed to load Accounts Receivable');

@@ -8,7 +8,9 @@ export type ActRecRow = {
   addrs1: string | null;
 };
 
-export async function fetchActrecTop(top = 10, offset = 0): Promise<ActRecRow[]> {
+export async function fetchActrecTop(
+  top = 10, 
+  offset = 0): Promise<ActRecRow[]> {
   const base = import.meta.env.VITE_API_BASE;
   if (!base) throw new Error("VITE_API_BASE is not defined (check .env.local)");
 
