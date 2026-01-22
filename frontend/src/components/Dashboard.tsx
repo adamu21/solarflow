@@ -173,7 +173,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ leads }) => {
         <h3 className="text-lg font-semibold mb-4 text-gray-800">Work Orders</h3>
 
         {woLoading && <div className="text-gray-500">Loading…</div>}
-        {woError && <div className="text-red-600">Error: {actrecError}</div>}
+        {woError && <div className="text-red-600">Error: {woError}</div>}
 
         {!woLoading && !woError && woRows.length === 0 && (
           <div className="text-gray-500">No rows returned.</div>
