@@ -1,8 +1,12 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// src/vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
 export default defineConfig({
+  root: '.',        // src is the root
   plugins: [react()],
-  base: '/',  // IMPORTANT for Azure Static Web Apps (root)
-})
+  build: {
+    outDir: '../dist',
+    emptyOutDir: true,
+  },
+});

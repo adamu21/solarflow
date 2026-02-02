@@ -25,12 +25,12 @@ import {
   Image as ImageIcon,
   Archive
 } from 'lucide-react';
-import { Dashboard } from './src/components/Dashboard';
-import { Pipeline } from './src/components/Pipeline';
-import { LeadCard } from './src/components/LeadCard';
-import { INITIAL_LEADS, EMAIL_TEMPLATES } from '../frontend/constants';
-import { Lead, LeadStatus, LeadSource, AuroraProject } from './src/types';
-import { analyzeLeadSpam, draftResponseEmail } from './src/services/geminiService';
+import { Dashboard } from '../src/components/Dashboard';
+import { Pipeline } from '../src/components/Pipeline';
+import { LeadCard } from '../src/components/LeadCard';
+import { INITIAL_LEADS, EMAIL_TEMPLATES } from './constants';
+import { Lead, LeadStatus, LeadSource, AuroraProject } from '../src/types';
+import { analyzeLeadSpam, draftResponseEmail } from '../src/services/geminiService';
 
 // --- Helper Components for App Layout ---
 
